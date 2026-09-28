@@ -1,0 +1,20 @@
+{
+  "name": "tuya-manager",
+  "version": "2.0.0",
+  "description": "Tuya LAN dashboard: scan, cache and control Tuya devices (TypeScript port of TinyTuya protocol)",
+  "type": "module",
+  "packageManager": "pnpm@11.5.3",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsc && node dist/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^5.6.2"
+  },
+  "license": "MIT"
+}

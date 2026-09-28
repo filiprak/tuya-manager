@@ -1,0 +1,6 @@
+# Local device cache (holds local keys) — never commit
+.tuya.json
+devices.json
+node_modules
+dist
+snapshot.json

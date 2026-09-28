@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tuya Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="max-w-4xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold">Tuya Manager</h1>
+        <p class="text-sm text-slate-400">LAN scan &amp; control (TinyTuya protocol v3.x)</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="scan-time" type="number" min="1" max="60" value="10" title="Scan seconds"
+          class="w-16 px-2 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+        <button id="btn-scan"
+          class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-medium text-sm disabled:opacity-50">Scan</button>
+      </div>
+    </header>
+
+    <div id="alert" class="hidden mb-4 px-4 py-3 rounded-lg text-sm"></div>
+
+    <main id="devices" class="grid gap-4 md:grid-cols-2"></main>
+
+    <p id="empty" class="hidden text-slate-400 text-sm border border-dashed border-slate-700 rounded-lg p-6 text-center">
+      No devices cached yet. Press <span class="font-semibold text-slate-200">Scan</span> to discover
+      Tuya devices on your LAN — results are saved to <code>devices.json</code>.
+    </p>
+
+    <footer class="mt-8 text-xs text-slate-500">
+      Keys are stored server-side in <code>devices.json</code> (mode 0600). Never commit that file.
+    </footer>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const alertBox = $('alert');
+
+function alert(msg, ok = false) {
+  alertBox.textContent = msg;
+  alertBox.classList.remove('hidden', 'bg-red-900/50', 'text-red-200', 'bg-emerald-900/50', 'text-emerald-200');
+  alertBox.classList.add(ok ? 'bg-emerald-900/50' : 'bg-red-900/50', ok ? 'text-emerald-200' : 'text-red-200');
+}
+
+function hideAlert() { alertBox.classList.add('hidden'); }
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function dpsIsOn(status) {
+  const dps = status?.dps || status?.data?.dps || {};
+  if ('20' in dps) return !!dps['20'];
+  if ('1' in dps) return !!dps['1'];
+  return null;
+}
+
+function card(dev) {
+  const el = document.createElement('section');
+  el.className = 'rounded-xl bg-slate-900 border border-slate-800 p-4 flex flex-col gap-3';
+  el.innerHTML = `
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <span data-dot class="inline-block w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+          <h2 class="font-mono text-sm truncate" title="${dev.id}">${dev.id}</h2>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">IP ${dev.ip} · v${dev.version} · ${dev.productKey || 'unknown product'} · key: ${dev.key}</p>
+      </div>
+    </div>
+    <div data-keyrow class="${dev.key === 'set' ? 'hidden' : ''} flex gap-2">
+      <input data-key type="password" placeholder="local key (16 chars)" maxlength="32"
+        class="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-mono" />
+      <button data-savekey class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">Save key</button>
+    </div>
+    <div class="grid grid-cols-4 gap-2">
+      <button data-act="on" class="px-2 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium">On</button>
+      <button data-act="off" class="px-2 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-medium">Off</button>
+      <button data-act="toggle" class="px-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium">Toggle</button>
+      <button data-act="status" class="px-2 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-sm font-medium">Status</button>
+    </div>
+    <pre data-out class="hidden text-xs bg-slate-950 border border-slate-800 rounded-lg p-2 overflow-auto max-h-48"></pre>`;
+  const out = el.querySelector('[data-out]');
+  const dot = el.querySelector('[data-dot]');
+  const show = (obj) => { out.textContent = JSON.stringify(obj, null, 2); out.classList.remove('hidden'); };
+  const setDot = (on) => { dot.className = 'inline-block w-2.5 h-2.5 rounded-full ' + (on === null ? 'bg-slate-600' : on ? 'bg-emerald-400' : 'bg-slate-600'); };
+
+  el.querySelectorAll('[data-act]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        hideAlert();
+        const act = btn.dataset.act;
+        const data = act === 'status'
+          ? await api(`/api/devices/${dev.id}/status`)
+          : await api(`/api/devices/${dev.id}/${act}`, { method: 'POST' });
+        show(data.status || data.result);
+        if (data.status) setDot(dpsIsOn(data.status));
+        else if (act !== 'status') setDot(act === 'on' ? true : act === 'off' ? false : null);
+      } catch (e) { alert(`${dev.id}: ${e.message}`); }
+      btn.disabled = false;
+    });
+  });
+
+  el.querySelector('[data-savekey]').addEventListener('click', async () => {
+    const key = el.querySelector('[data-key]').value.trim();
+    if (key.length !== 16) { alert('Local key must be exactly 16 characters.'); return; }
+    try {
+      hideAlert();
+      await api(`/api/devices/${dev.id}`, { method: 'PUT', body: JSON.stringify({ key }) });
+      el.querySelector('[data-keyrow]').classList.add('hidden');
+      alert(`Key saved for ${dev.id}.`, true);
+      load();
+    } catch (e) { alert(`${dev.id}: ${e.message}`); }
+  });
+
+  return el;
+}
+
+async function load() {
+  try {
+    const { devices } = await api('/api/devices');
+    const wrap = $('devices');
+    wrap.innerHTML = '';
+    $('empty').classList.toggle('hidden', devices.length > 0);
+    devices.forEach((d) => wrap.appendChild(card(d)));
+  } catch (e) { alert(e.message); }
+}
+
+$('btn-scan').addEventListener('click', async () => {
+  const btn = $('btn-scan');
+  btn.disabled = true;
+  btn.textContent = 'Scanning…';
+  try {
+    hideAlert();
+    const timeoutSec = Math.min(Math.max(parseInt($('scan-time').value, 10) || 10, 1), 60);
+    const { found, cached } = await api('/api/scan', { method: 'POST', body: JSON.stringify({ timeoutSec }) });
+    alert(`Scan complete: ${found.length} heard, ${cached} cached.`, true);
+    load();
+  } catch (e) { alert(e.message); }
+  btn.disabled = false;
+  btn.textContent = 'Scan';
+});
+
+load();
+</script>
+</body>
+</html>
