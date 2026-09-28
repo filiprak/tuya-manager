@@ -5,10 +5,30 @@
 
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
+import Gdk from 'gi://Gdk';
+import Gtk from 'gi://Gtk';
 import Soup from 'gi://Soup';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {QuickToggle, SystemIndicator} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+const ICON_NAME = 'tuya-led-bulb-symbolic';
+
+// Custom bulb icon in the Adwaita symbolic outline style.
+// gnome-extensions pack only bundles stock files, so install.sh adds the
+// svg via --extra-source (lands at the bundle root); register both the
+// repo icons/ dir and the bundle root and use whichever exists.
+function ensureIconPath(extPath) {
+    try {
+        const theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default());
+        for (const dir of [`${extPath}/icons`, extPath]) {
+            if (!theme.get_search_path().includes(dir))
+                theme.add_search_path(dir);
+        }
+    } catch {
+        // leave the toggle on its fallback icon
+    }
+}
 
 function dpsIsOn(status) {
     const dps = status?.dps ?? status?.data?.dps ?? {};
@@ -25,7 +45,7 @@ class TuyaLedToggle extends QuickToggle {
         super._init({
             title: _('LED'),
             subtitle: _('Tuya lamp'),
-            iconName: 'lightbulb-symbolic',
+            iconName: ICON_NAME,
             toggleMode: true,
         });
 
@@ -147,7 +167,7 @@ class TuyaLedIndicator extends SystemIndicator {
         this._settings = settings;
 
         this._indicator = this._addIndicator();
-        this._indicator.iconName = 'lightbulb-symbolic';
+        this._indicator.iconName = ICON_NAME;
         this._indicator.visible = false;
 
         this._toggle = new TuyaLedToggle(settings);
@@ -165,6 +185,7 @@ class TuyaLedIndicator extends SystemIndicator {
 export default class TuyaLedExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
+        ensureIconPath(this.path);
         this._indicator = new TuyaLedIndicator(this._settings);
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
     }

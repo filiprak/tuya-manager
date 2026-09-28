@@ -6,6 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UUID="tuya-led@localhost"
 SERVICE="tuya-manager.service"
+OFF_SERVICE="tuya-led-off.service"
 PORT="${PORT:-9751}"
 EXT_DIR="$HOME/.local/share/gnome-shell/extensions/$UUID"
 UNIT_DIR="$HOME/.config/systemd/user"
@@ -42,6 +43,30 @@ systemctl --user daemon-reload
 systemctl --user enable --now "$SERVICE"
 systemctl --user --no-pager status "$SERVICE" | head -8
 
+echo "==> installing shutdown hook ($OFF_SERVICE, turns LED off on shutdown)"
+mkdir -p "$UNIT_DIR"
+cat > "$UNIT_DIR/$OFF_SERVICE" <<EOF
+[Unit]
+Description=Turn off Tuya LED on shutdown
+DefaultDependencies=no
+After=network-online.target
+Wants=network-online.target
+Before=shutdown.target reboot.target halt.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$ROOT
+ExecStart=/bin/true
+ExecStop=$(command -v node) $ROOT/dist/led-off.js
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now "$OFF_SERVICE"
+
 echo "==> installing GNOME extension ($UUID)"
 # Use gnome-extensions pack+install (not raw cp) so the running Shell is
 # notified through D-Bus and picks the extension up without relogin.
@@ -50,7 +75,11 @@ echo "==> installing GNOME extension ($UUID)"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 if command -v gnome-extensions >/dev/null 2>&1; then
-  gnome-extensions pack "$ROOT/gnome-extension" --out-dir="$TMPDIR"
+  # pack only bundles stock files, so the custom bulb icon rides along
+  # via --extra-source (lands at the bundle root, see ensureIconPath).
+  gnome-extensions pack "$ROOT/gnome-extension" \
+    --extra-source="$ROOT/gnome-extension/icons/tuya-led-bulb-symbolic.svg" \
+    --out-dir="$TMPDIR"
   gnome-extensions install --force "$TMPDIR/$UUID.shell-extension.zip"
   glib-compile-schemas "$EXT_DIR/schemas"
   # Allow user extensions (distros sometimes default this off) so

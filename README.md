@@ -37,7 +37,12 @@ PORT=9751 ./scripts/install.sh
 ```
 
 Layout: `gnome-extension/` (`extension.js`, `prefs.js`, `metadata.json`,
-`schemas/`), user unit `tuya-manager.service`.
+`schemas/`), user unit `tuya-manager.service` plus shutdown hook
+`tuya-led-off.service` (runs `node dist/led-off.js` on shutdown so the lamp
+turns itself off; re-run `scripts/install.sh` to install it).
+
+Manual test: `node dist/led-off.js` (all devices) or
+`node dist/led-off.js --device <id>`; always exits 0.
 
 ## REST API
 
@@ -70,5 +75,6 @@ Layout: `gnome-extension/` (`extension.js`, `prefs.js`, `metadata.json`,
 * `src/store.ts` — `devices.json` cache (migrates legacy `.tuya.json`)
 * `src/server.ts` — `node:http` API + static files (zero runtime deps)
 * `public/index.html` — Tailwind dashboard (CDN, no build step)
-* `gnome-extension/` — Quick Settings LED toggle (shell 45–50)
+* `gnome-extension/` — Quick Settings LED toggle (shell 45–50) with a custom
+  bulb icon (`icons/tuya-led-bulb-symbolic.svg`, Adwaita symbolic style)
 * `scripts/install.sh` / `scripts/uninstall.sh` — service + extension setup

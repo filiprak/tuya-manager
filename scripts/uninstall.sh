@@ -4,6 +4,7 @@ set -euo pipefail
 
 UUID="tuya-led@localhost"
 SERVICE="tuya-manager.service"
+OFF_SERVICE="tuya-led-off.service"
 EXT_DIR="$HOME/.local/share/gnome-shell/extensions/$UUID"
 UNIT="$HOME/.config/systemd/user/$SERVICE"
 
@@ -22,6 +23,14 @@ if [ -f "$UNIT" ]; then
   echo "==> stopping background service ($SERVICE)"
   systemctl --user disable --now "$SERVICE" || true
   rm -f "$UNIT"
+  systemctl --user daemon-reload || true
+fi
+
+OFF_UNIT="$HOME/.config/systemd/user/$OFF_SERVICE"
+if [ -f "$OFF_UNIT" ]; then
+  echo "==> removing shutdown hook ($OFF_SERVICE)"
+  systemctl --user disable --now "$OFF_SERVICE" || true
+  rm -f "$OFF_UNIT"
   systemctl --user daemon-reload || true
 fi
 
