@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Bulb icon for the Tuya LED toggle, drawn in the Adwaita symbolic style:
-     16x16 grid, monochrome filled shapes. GNOME Shell recolors *-symbolic
-     themed icons automatically, so this stays a single fill color. -->
-<svg height="16px" viewBox="0 0 16 16" width="16px" xmlns="http://www.w3.org/2000/svg">
+     16x16 grid, monochrome filled shapes. The root fill="#2e3436" is the
+     canonical symbolic foreground: GNOME Shell recolors it to the theme
+     foreground automatically (white in dark style, dark in light style),
+     so this must stay a single symbolic-palette fill — never default
+     black and never a FileIcon gicon (both bypass recoloring). -->
+<svg height="16px" viewBox="0 0 16 16" width="16px" fill="#2e3436" xmlns="http://www.w3.org/2000/svg">
     <!-- rays -->
     <rect x="7.4" y="0" width="1.2" height="1.25" rx="0.6"/>
     <rect x="3.28" y="1.28" width="1.2" height="1.7" rx="0.6" transform="rotate(-45 3.88 2.13)"/>
