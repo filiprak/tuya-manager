@@ -34,6 +34,7 @@ PORT=8080 pnpm start  # custom port
 | POST | `/api/devices/:id/on` `{dp?}` | switch on (DP auto-detect: 20 vs 1) |
 | POST | `/api/devices/:id/off` `{dp?}` | switch off |
 | POST | `/api/devices/:id/toggle` | flip current switch state |
+| POST | `/api/devices/:id/color` `{r,g,b}` or `{hex:"#rrggbb"}` | set LED color (DP auto-detect: 5/A vs 24/B) |
 | POST | `/api/devices/:id/dps` `{dps}` | set arbitrary datapoints |
 | PUT | `/api/devices/:id` `{key?, ip?, version?}` | store key / fix address |
 

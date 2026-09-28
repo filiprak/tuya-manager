@@ -88,6 +88,11 @@ function card(dev) {
       <button data-act="toggle" class="px-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium">Toggle</button>
       <button data-act="status" class="px-2 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-sm font-medium">Status</button>
     </div>
+    <div class="flex gap-2 items-center">
+      <input data-color type="color" value="#ffffff" title="LED color"
+        class="w-10 h-9 p-1 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer" />
+      <button data-setcolor class="flex-1 px-2 py-2 rounded-lg bg-fuchsia-700 hover:bg-fuchsia-600 text-sm font-medium">Set color</button>
+    </div>
     <pre data-out class="hidden text-xs bg-slate-950 border border-slate-800 rounded-lg p-2 overflow-auto max-h-48"></pre>`;
   const out = el.querySelector('[data-out]');
   const dot = el.querySelector('[data-dot]');
@@ -109,6 +114,18 @@ function card(dev) {
       } catch (e) { alert(`${dev.id}: ${e.message}`); }
       btn.disabled = false;
     });
+  });
+
+  el.querySelector('[data-setcolor]').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    try {
+      hideAlert();
+      const hex = el.querySelector('[data-color]').value;
+      const data = await api(`/api/devices/${dev.id}/color`, { method: 'POST', body: JSON.stringify({ hex }) });
+      show(data.result);
+    } catch (e) { alert(`${dev.id}: ${e.message}`); }
+    btn.disabled = false;
   });
 
   el.querySelector('[data-savekey]').addEventListener('click', async () => {

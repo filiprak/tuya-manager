@@ -5,6 +5,7 @@
 //   core/XenonDevice.py    -> TuyaDevice encode/decode/status/setDps
 //   core/udp_helper.py     -> decryptUdp (scan broadcasts, key = md5("yGAdlopoPVldABfn"))
 //   BulbDevice.py          -> detectSwitchDp (DP 20 for type B, DP 1 for A/C)
+//                          -> rgbToHexvalue / setColour (DP 5 rgb8 for A, DP 24 hsv16 for B)
 //   scanner.py             -> scan() listening on UDP 6666/6667/7000
 
 import crypto from 'node:crypto';
@@ -299,6 +300,77 @@ export async function detectSwitchDp(device: TuyaDevice): Promise<{ dp: string; 
 export async function setOn(device: TuyaDevice, on: boolean, dpHint?: string): Promise<Record<string, unknown>> {
   const dp = dpHint ?? (await detectSwitchDp(device)).dp;
   return device.setDps({ [dp]: on });
+}
+
+// Port of colorsys.rgb_to_hsv (tinytuya BulbDevice.rgb_to_hexvalue input step).
+export function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  const maxc = Math.max(r, g, b);
+  const minc = Math.min(r, g, b);
+  const v = maxc;
+  if (minc === maxc) return [0, 0, v];
+  const s = (maxc - minc) / maxc;
+  const rc = (maxc - r) / (maxc - minc);
+  const gc = (maxc - g) / (maxc - minc);
+  const bc = (maxc - b) / (maxc - minc);
+  let h: number;
+  if (r === maxc) h = bc - gc;
+  else if (g === maxc) h = 2 + rc - bc;
+  else h = 4 + gc - rc;
+  // NB: q - floor(q), not ((q % 1) + 1) % 1: the extra round-trip loses a bit
+  // vs CPython's (h/6.0) % 1.0 and shifts green/blue hue by 1 (see tests).
+  const q = h / 6;
+  h = q - Math.floor(q);
+  return [h, s, v];
+}
+
+export type ColourHexFormat = 'rgb8' | 'hsv16';
+
+// Port of tinytuya BulbDevice.rgb_to_hexvalue. int() truncation kept as Math.floor
+// (inputs are non-negative, matching Python semantics exactly).
+export function rgbToHexvalue(r: number, g: number, b: number, hexformat: ColourHexFormat): string {
+  for (const [name, v] of [['red', r], ['green', g], ['blue', b]] as const) {
+    if (!Number.isFinite(v) || v < 0 || v > 255) throw new Error(`invalid ${name} value ${v}: expected 0-255`);
+  }
+  const [h, s, v] = rgbToHsv(r / 255, g / 255, b / 255);
+  const hex = (n: number, w: number): string => Math.floor(n).toString(16).padStart(w, '0');
+  if (hexformat === 'rgb8') {
+    // r:0-255,g:0-255,b:0-255 + h:0-360,s:0-255,v:0-255 -> rrggbbhhhhssvv
+    return hex(r, 2) + hex(g, 2) + hex(b, 2) + hex(h * 360, 4) + hex(s * 255, 2) + hex(v * 255, 2);
+  }
+  // h:0-360,s:0-1000,v:0-1000 -> hhhhssssvvvv
+  return hex(h * 360, 4) + hex(s * 1000, 4) + hex(v * 1000, 4);
+}
+
+export interface BulbColourDps {
+  switchDp: string;
+  modeDp: string;
+  colourDp: string;
+  hexformat: ColourHexFormat;
+}
+
+// Mirror of BulbDevice.detect_bulb DPS mapping (A: 1/2/5 rgb8, B: 20/21/24 hsv16).
+export async function detectColourDps(device: TuyaDevice): Promise<{ dps: BulbColourDps; status: Record<string, unknown> }> {
+  const status = await device.status();
+  const dps = ((status?.dps ?? (status?.data as Record<string, unknown> | undefined)?.dps) ?? {}) as Record<string, unknown>;
+  if ('24' in dps) return { dps: { switchDp: '20', modeDp: '21', colourDp: '24', hexformat: 'hsv16' }, status };
+  if ('5' in dps) return { dps: { switchDp: '1', modeDp: '2', colourDp: '5', hexformat: 'rgb8' }, status };
+  throw new Error('device does not report a colour DP (5 or 24)');
+}
+
+// Mirror of BulbDevice.set_colour: {colour: hexvalue, mode: 'colour', switch: true}.
+export async function setColour(device: TuyaDevice, r: number, g: number, b: number): Promise<Record<string, unknown>> {
+  const { dps } = await detectColourDps(device);
+  return device.setDps({
+    [dps.switchDp]: true,
+    [dps.modeDp]: 'colour',
+    [dps.colourDp]: rgbToHexvalue(Math.round(r), Math.round(g), Math.round(b), dps.hexformat),
+  });
+}
+
+export function parseHexColour(hex: string): [number, number, number] {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) throw new Error(`invalid hex colour ${JSON.stringify(hex)}: expected #rrggbb`);
+  return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
 }
 
 export interface ScannedDevice {

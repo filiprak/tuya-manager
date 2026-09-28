@@ -4,6 +4,7 @@
 //   POST /api/scan {timeoutSec?}   scan LAN, merge into devices.json
 //   GET  /api/devices/:id/status
 //   POST /api/devices/:id/on|off|toggle {dp?}
+//   POST /api/devices/:id/color {r,g,b} | {hex:"#rrggbb"}
 //   POST /api/devices/:id/dps {dps}
 //   PUT  /api/devices/:id {key?, ip?, version?}
 //   GET  /                        dashboard UI
@@ -12,7 +13,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TuyaDevice, detectSwitchDp, setOn, scan } from './tuya.js';
+import { TuyaDevice, detectSwitchDp, setOn, setColour, parseHexColour, scan } from './tuya.js';
 import { storePath, loadStore, saveStore, mergeScanResults, getDevice } from './store.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -153,6 +154,33 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse): P
           result = await setOn(dev, parts[3] === 'on', dp);
         }
         json(res, 200, { result });
+      } catch (e) {
+        json(res, 502, { error: `command failed: ${(e as Error).message}` });
+      }
+      return;
+    }
+
+    // POST /api/devices/:id/color {r,g,b} | {hex:"#rrggbb"}
+    if (method === 'POST' && parts.length === 4 && parts[3] === 'color') {
+      let rgb: [number, number, number];
+      try {
+        if (typeof body.hex === 'string') {
+          rgb = parseHexColour(body.hex);
+        } else {
+          const r = Number(body.r);
+          const g = Number(body.g);
+          const b = Number(body.b);
+          if (![r, g, b].every((v) => Number.isFinite(v) && v >= 0 && v <= 255)) {
+            throw new Error('body must be {r,g,b} with 0-255 values or {hex:"#rrggbb"}');
+          }
+          rgb = [r, g, b];
+        }
+      } catch (e) {
+        json(res, 400, { error: (e as Error).message });
+        return;
+      }
+      try {
+        json(res, 200, { result: await setColour(dev, rgb[0], rgb[1], rgb[2]) });
       } catch (e) {
         json(res, 502, { error: `command failed: ${(e as Error).message}` });
       }
