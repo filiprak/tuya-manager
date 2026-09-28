@@ -3,6 +3,6 @@
   "name": "Tuya LED",
   "description": "Quick Settings toggle for a Tuya LAN lamp (via tuya-manager dashboard API)",
   "shell-version": ["45", "46", "47", "48", "49", "50"],
-  "version": 3,
+  "version": 4,
   "settings-schema": "org.gnome.shell.extensions.tuya-led"
 }

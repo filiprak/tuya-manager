@@ -67,6 +67,15 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now "$OFF_SERVICE"
 
+echo "==> installing toggle icon ($UUID)"
+# St (unlike Gtk) has its own icon theme, so the custom bulb svg goes to the
+# hicolor fallback theme where St resolves it without any code-side setup.
+# (gnome-extensions pack drops non-stock files, hence this separate step.)
+ICON_SRC="$ROOT/gnome-extension/icons/tuya-led-bulb-symbolic.svg"
+ICON_DST="$HOME/.local/share/icons/hicolor/scalable/status/tuya-led-bulb-symbolic.svg"
+mkdir -p "$(dirname "$ICON_DST")"
+cp -f "$ICON_SRC" "$ICON_DST"
+
 echo "==> installing GNOME extension ($UUID)"
 # Use gnome-extensions pack+install (not raw cp) so the running Shell is
 # notified through D-Bus and picks the extension up without relogin.
@@ -75,11 +84,7 @@ echo "==> installing GNOME extension ($UUID)"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 if command -v gnome-extensions >/dev/null 2>&1; then
-  # pack only bundles stock files, so the custom bulb icon rides along
-  # via --extra-source (lands at the bundle root, see ensureIconPath).
-  gnome-extensions pack "$ROOT/gnome-extension" \
-    --extra-source="$ROOT/gnome-extension/icons/tuya-led-bulb-symbolic.svg" \
-    --out-dir="$TMPDIR"
+  gnome-extensions pack "$ROOT/gnome-extension" --out-dir="$TMPDIR"
   gnome-extensions install --force "$TMPDIR/$UUID.shell-extension.zip"
   glib-compile-schemas "$EXT_DIR/schemas"
   # Allow user extensions (distros sometimes default this off) so

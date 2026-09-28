@@ -19,6 +19,12 @@ if [ -d "$EXT_DIR" ]; then
   rm -rf "$EXT_DIR"
 fi
 
+ICON="$HOME/.local/share/icons/hicolor/scalable/status/tuya-led-bulb-symbolic.svg"
+if [ -f "$ICON" ]; then
+  echo "==> removing toggle icon ($ICON)"
+  rm -f "$ICON"
+fi
+
 if [ -f "$UNIT" ]; then
   echo "==> stopping background service ($SERVICE)"
   systemctl --user disable --now "$SERVICE" || true

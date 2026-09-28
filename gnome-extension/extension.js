@@ -5,30 +5,15 @@
 
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
-import Gdk from 'gi://Gdk';
-import Gtk from 'gi://Gtk';
 import Soup from 'gi://Soup';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {QuickToggle, SystemIndicator} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+// Custom bulb in the Adwaita symbolic outline style. install.sh places it in
+// ~/.local/share/icons/hicolor/... so St (which has its own icon theme,
+// separate from Gtk's) resolves and recolors it like the stock toggles.
 const ICON_NAME = 'tuya-led-bulb-symbolic';
-
-// Custom bulb icon in the Adwaita symbolic outline style.
-// gnome-extensions pack only bundles stock files, so install.sh adds the
-// svg via --extra-source (lands at the bundle root); register both the
-// repo icons/ dir and the bundle root and use whichever exists.
-function ensureIconPath(extPath) {
-    try {
-        const theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default());
-        for (const dir of [`${extPath}/icons`, extPath]) {
-            if (!theme.get_search_path().includes(dir))
-                theme.add_search_path(dir);
-        }
-    } catch {
-        // leave the toggle on its fallback icon
-    }
-}
 
 function dpsIsOn(status) {
     const dps = status?.dps ?? status?.data?.dps ?? {};
@@ -185,7 +170,6 @@ class TuyaLedIndicator extends SystemIndicator {
 export default class TuyaLedExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
-        ensureIconPath(this.path);
         this._indicator = new TuyaLedIndicator(this._settings);
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
     }
