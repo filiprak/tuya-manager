@@ -10,9 +10,11 @@ UNIT="$HOME/.config/systemd/user/$SERVICE"
 if command -v gnome-extensions >/dev/null 2>&1; then
   echo "==> disabling GNOME extension ($UUID)"
   gnome-extensions disable "$UUID" || true
+  echo "==> uninstalling GNOME extension ($UUID)"
+  gnome-extensions uninstall "$UUID" || true
 fi
 if [ -d "$EXT_DIR" ]; then
-  echo "==> removing $EXT_DIR"
+  echo "==> removing leftover $EXT_DIR"
   rm -rf "$EXT_DIR"
 fi
 

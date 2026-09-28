@@ -18,7 +18,7 @@ function dpsIsOn(status) {
 }
 
 const TuyaLedToggle = GObject.registerClass(
-class TuyaLedToggle extends QuickSettings.QuickToggle {
+class TuyaLedToggle extends QuickSettings.QuickMenuToggle {
     _init(ext) {
         super._init({
             title: _('LED'),
