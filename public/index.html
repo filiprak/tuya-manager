@@ -5,152 +5,305 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tuya Manager</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .glow-on { box-shadow: 0 0 24px -6px var(--bulb, #fbbf24); }
+    /* iOS-style switch */
+    .switch { position: relative; width: 52px; height: 30px; flex: none; cursor: pointer; }
+    .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+    .switch .track {
+      position: absolute; inset: 0; border-radius: 9999px;
+      background: #334155; transition: background .2s ease;
+      border: 1px solid rgba(148,163,184,.25);
+    }
+    .switch .thumb {
+      position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 9999px;
+      background: #e2e8f0; transition: transform .2s ease; pointer-events: none;
+    }
+    .switch input:checked + .track { background: linear-gradient(135deg, #10b981, #059669); border-color: transparent; }
+    .switch input:checked + .track + .thumb { transform: translateX(22px); }
+    .switch input:disabled ~ .track, .switch input:disabled ~ .thumb { opacity: .5; }
+    .switch input:focus-visible + .track { outline: 2px solid #38bdf8; outline-offset: 2px; }
+    input[type="color"] { -webkit-appearance: none; appearance: none; border: none; padding: 0; background: none; cursor: pointer; }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 0.65rem; }
+    input[type="color"]::-moz-color-swatch { border: none; border-radius: 0.65rem; }
+    .swatch { transition: transform .12s ease, box-shadow .12s ease; }
+    .swatch:hover { transform: scale(1.12); }
+    .swatch.active { box-shadow: 0 0 0 2px #0f172a, 0 0 0 4px #e2e8f0; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fade-in { animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-  <div class="max-w-4xl mx-auto p-6">
-    <header class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold">Tuya Manager</h1>
-        <p class="text-sm text-slate-400">LAN scan &amp; control (TinyTuya protocol v3.x)</p>
+<body class="min-h-screen text-slate-100 bg-slate-950 bg-[radial-gradient(60rem_30rem_at_50%_-10rem,rgba(99,102,241,.25),transparent)]">
+  <div class="max-w-5xl mx-auto p-4 sm:p-6">
+    <header class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-xl">💡</div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Tuya Manager</h1>
+          <p class="text-xs sm:text-sm text-slate-400">LAN scan &amp; control · TinyTuya protocol v3.x</p>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
-        <input id="scan-time" type="number" min="1" max="60" value="10" title="Scan seconds"
-          class="w-16 px-2 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+      <div class="flex items-center gap-2 bg-slate-900/70 border border-slate-800 rounded-2xl px-3 py-2 backdrop-blur">
+        <label class="text-xs text-slate-400" for="scan-time">Scan</label>
+        <input id="scan-time" type="number" min="1" max="60" value="10"
+          class="w-14 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-sm text-center" />
+        <span class="text-xs text-slate-500">s</span>
         <button id="btn-scan"
-          class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 font-medium text-sm disabled:opacity-50">Scan</button>
+          class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition font-medium text-sm disabled:opacity-50">Scan</button>
       </div>
     </header>
 
-    <div id="alert" class="hidden mb-4 px-4 py-3 rounded-lg text-sm"></div>
+    <div id="toast" class="hidden fixed top-4 right-4 z-50 max-w-sm px-4 py-3 rounded-2xl text-sm border shadow-xl fade-in"></div>
 
-    <main id="devices" class="grid gap-4 md:grid-cols-2"></main>
+    <main id="devices" class="grid gap-4 sm:grid-cols-2"></main>
 
-    <p id="empty" class="hidden text-slate-400 text-sm border border-dashed border-slate-700 rounded-lg p-6 text-center">
-      No devices cached yet. Press <span class="font-semibold text-slate-200">Scan</span> to discover
-      Tuya devices on your LAN — results are saved to <code>devices.json</code>.
-    </p>
+    <div id="empty" class="hidden text-slate-400 text-sm border border-dashed border-slate-700 rounded-2xl p-8 text-center bg-slate-900/40">
+      <div class="text-3xl mb-2">📡</div>
+      No devices yet. Press <span class="font-semibold text-slate-200">Scan</span> to discover
+      Tuya devices on your LAN — results are saved to <code class="text-slate-300">devices.json</code>.
+    </div>
 
-    <footer class="mt-8 text-xs text-slate-500">
-      Keys are stored server-side in <code>devices.json</code> (mode 0600). Never commit that file.
+    <footer class="mt-8 text-xs text-slate-500 text-center">
+      Tuya LAN dashboard · TinyTuya protocol v3.x
     </footer>
   </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const alertBox = $('alert');
+const toastBox = $('toast');
+let toastTimer = null;
 
-function alert(msg, ok = false) {
-  alertBox.textContent = msg;
-  alertBox.classList.remove('hidden', 'bg-red-900/50', 'text-red-200', 'bg-emerald-900/50', 'text-emerald-200');
-  alertBox.classList.add(ok ? 'bg-emerald-900/50' : 'bg-red-900/50', ok ? 'text-emerald-200' : 'text-red-200');
+function toast(msg, ok = false) {
+  toastBox.textContent = msg;
+  toastBox.classList.remove('hidden', 'bg-red-950/80', 'border-red-800', 'text-red-200', 'bg-emerald-950/80', 'border-emerald-800', 'text-emerald-200');
+  toastBox.classList.add(ok ? 'bg-emerald-950/80' : 'bg-red-950/80', ok ? 'border-emerald-800' : 'border-red-800', ok ? 'text-emerald-200' : 'text-red-200');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastBox.classList.add('hidden'), 5000);
 }
-
-function hideAlert() { alertBox.classList.add('hidden'); }
+function hideToast() { toastBox.classList.add('hidden'); }
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
-  });
+  const res = await fetch(path, { ...opts, headers: { 'content-type': 'application/json', ...(opts.headers || {}) } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
+const PRESETS = ['#ff0000', '#ff7f00', '#ffd400', '#00e676', '#00b0ff', '#3d5afe', '#d500f9', '#ffffff'];
+
+function getDps(status) { return status?.dps || status?.data?.dps || {}; }
+
 function dpsIsOn(status) {
-  const dps = status?.dps || status?.data?.dps || {};
+  const dps = getDps(status);
   if ('20' in dps) return !!dps['20'];
   if ('1' in dps) return !!dps['1'];
   return null;
 }
 
+// Inverse of rgbToHexvalue: rgb8 -> first 6 chars; hsv16 hhhhssssvvvv -> rgb.
+function dpsToHex(status) {
+  const dps = getDps(status);
+  try {
+    if (typeof dps['5'] === 'string' && /^[0-9a-fA-F]{6}/.test(dps['5'])) return '#' + dps['5'].slice(0, 6).toLowerCase();
+    if (typeof dps['24'] === 'string' && /^[0-9a-fA-F]{12}$/.test(dps['24'])) {
+      const h = parseInt(dps['24'].slice(0, 4), 16) / 360;
+      const s = parseInt(dps['24'].slice(4, 8), 16) / 1000;
+      const v = parseInt(dps['24'].slice(8, 12), 16) / 1000;
+      const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+      let r, g, b;
+      switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        default: r = v; g = p; b = q; break;
+      }
+      const hx = (n) => Math.round(n * 255).toString(16).padStart(2, '0');
+      return '#' + hx(r) + hx(g) + hx(b);
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 function card(dev) {
   const el = document.createElement('section');
-  el.className = 'rounded-xl bg-slate-900 border border-slate-800 p-4 flex flex-col gap-3';
+  el.className = 'rounded-3xl bg-slate-900/70 border border-slate-800 p-5 flex flex-col gap-4 backdrop-blur fade-in';
   el.innerHTML = `
-    <div class="flex items-start justify-between gap-2">
-      <div class="min-w-0">
-        <div class="flex items-center gap-2">
-          <span data-dot class="inline-block w-2.5 h-2.5 rounded-full bg-slate-600"></span>
-          <h2 class="font-mono text-sm truncate" title="${dev.id}">${dev.id}</h2>
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span data-bulb class="text-2xl transition-all" style="filter: grayscale(1) opacity(.5)">💡</span>
+        <div class="min-w-0">
+          <h2 class="font-mono text-xs sm:text-sm truncate" title="${dev.id}">${dev.id}</h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">IP ${dev.ip} · v${dev.version} · ${dev.productKey || 'unknown product'}</p>
         </div>
-        <p class="text-xs text-slate-400 mt-1">IP ${dev.ip} · v${dev.version} · ${dev.productKey || 'unknown product'} · key: ${dev.key}</p>
       </div>
+      <label class="switch" title="Power">
+        <input data-power type="checkbox" />
+        <span class="track"></span>
+        <span class="thumb"></span>
+      </label>
+    </div>
+    <div class="flex items-center gap-2 text-xs">
+      <span data-state class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-medium">unknown</span>
+      <span data-mode class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-medium hidden"></span>
+      <button data-refresh title="Refresh status" class="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition">↻</button>
     </div>
     <div data-keyrow class="${dev.key === 'set' ? 'hidden' : ''} flex gap-2">
-      <input data-key type="password" placeholder="local key (16 chars)" maxlength="32"
-        class="flex-1 min-w-0 px-2 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-sm font-mono" />
-      <button data-savekey class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm">Save key</button>
+      <input data-key type="password" placeholder="local key · 16 chars" maxlength="32"
+        class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700 text-sm font-mono placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+      <button data-savekey class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 transition text-sm">Save</button>
     </div>
-    <div class="grid grid-cols-4 gap-2">
-      <button data-act="on" class="px-2 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium">On</button>
-      <button data-act="off" class="px-2 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-medium">Off</button>
-      <button data-act="toggle" class="px-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-sm font-medium">Toggle</button>
-      <button data-act="status" class="px-2 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-sm font-medium">Status</button>
+    <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3 flex flex-col gap-3">
+      <div class="flex items-center gap-3">
+        <input data-color type="color" value="#ffffff" title="LED color"
+          class="w-12 h-10 rounded-xl border border-slate-700" />
+        <div data-swatches class="flex flex-wrap gap-1.5"></div>
+        <span data-colorspinner class="hidden text-slate-400 text-sm spin">↻</span>
+      </div>
+      <p class="text-[11px] text-slate-500">Color applies automatically as you pick.</p>
     </div>
-    <div class="flex gap-2 items-center">
-      <input data-color type="color" value="#ffffff" title="LED color"
-        class="w-10 h-9 p-1 rounded-lg bg-slate-800 border border-slate-700 cursor-pointer" />
-      <button data-setcolor class="flex-1 px-2 py-2 rounded-lg bg-fuchsia-700 hover:bg-fuchsia-600 text-sm font-medium">Set color</button>
-    </div>
-    <pre data-out class="hidden text-xs bg-slate-950 border border-slate-800 rounded-lg p-2 overflow-auto max-h-48"></pre>`;
-  const out = el.querySelector('[data-out]');
-  const dot = el.querySelector('[data-dot]');
-  const show = (obj) => { out.textContent = JSON.stringify(obj, null, 2); out.classList.remove('hidden'); };
-  const setDot = (on) => { dot.className = 'inline-block w-2.5 h-2.5 rounded-full ' + (on === null ? 'bg-slate-600' : on ? 'bg-emerald-400' : 'bg-slate-600'); };
+    <details class="text-xs">
+      <summary class="cursor-pointer text-slate-500 hover:text-slate-300 select-none">Raw status JSON</summary>
+      <pre data-out class="mt-2 text-[11px] bg-slate-950 border border-slate-800 rounded-xl p-2 overflow-auto max-h-48">—</pre>
+    </details>`;
 
-  el.querySelectorAll('[data-act]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      try {
-        hideAlert();
-        const act = btn.dataset.act;
-        const data = act === 'status'
-          ? await api(`/api/devices/${dev.id}/status`)
-          : await api(`/api/devices/${dev.id}/${act}`, { method: 'POST' });
-        show(data.status || data.result);
-        if (data.status) setDot(dpsIsOn(data.status));
-        else if (act !== 'status') setDot(act === 'on' ? true : act === 'off' ? false : null);
-      } catch (e) { alert(`${dev.id}: ${e.message}`); }
-      btn.disabled = false;
-    });
+  const power = el.querySelector('[data-power]');
+  const statePill = el.querySelector('[data-state]');
+  const modePill = el.querySelector('[data-mode]');
+  const bulb = el.querySelector('[data-bulb]');
+  const colorInput = el.querySelector('[data-color]');
+  const out = el.querySelector('[data-out]');
+  const swatches = el.querySelector('[data-swatches]');
+  let busy = false;
+
+  function setState(on) {
+    power.checked = !!on;
+    statePill.textContent = on === null ? 'unknown' : on ? 'on' : 'off';
+    statePill.className = 'px-2.5 py-1 rounded-full font-medium ' + (on === null
+      ? 'bg-slate-800 text-slate-400'
+      : on ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-slate-800 text-slate-400');
+    bulb.style.filter = on ? 'none' : 'grayscale(1) opacity(.5)';
+    el.style.setProperty('--bulb', colorInput.value);
+    el.classList.toggle('glow-on', !!on);
+  }
+
+  function setMode(status) {
+    const dps = getDps(status);
+    const mode = dps['2'] ?? dps['21'] ?? null;
+    if (typeof mode === 'string' && mode) {
+      modePill.textContent = mode;
+      modePill.classList.remove('hidden');
+    } else modePill.classList.add('hidden');
+  }
+
+  async function refresh() {
+    try {
+      const { status } = await api(`/api/devices/${dev.id}/status`);
+      out.textContent = JSON.stringify(status, null, 2);
+      setState(dpsIsOn(status));
+      setMode(status);
+      const hex = dpsToHex(status);
+      if (hex) { colorInput.value = hex; el.style.setProperty('--bulb', hex); markSwatch(hex); }
+      return status;
+    } catch (e) {
+      out.textContent = `error: ${e.message}`;
+      throw e;
+    }
+  }
+
+  function markSwatch(hex) {
+    swatches.querySelectorAll('.swatch').forEach((s) =>
+      s.classList.toggle('active', s.dataset.hex.toLowerCase() === String(hex).toLowerCase()));
+  }
+
+  PRESETS.forEach((hex) => {
+    const b = document.createElement('button');
+    b.className = 'swatch w-6 h-6 rounded-full border border-white/20';
+    b.style.background = hex;
+    b.title = hex;
+    b.dataset.hex = hex;
+    b.addEventListener('click', () => { colorInput.value = hex; markSwatch(hex); scheduleColorApply(); });
+    swatches.appendChild(b);
   });
 
-  el.querySelector('[data-setcolor]').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget;
-    btn.disabled = true;
+  const colorSpinner = el.querySelector('[data-colorspinner]');
+  let colorTimer = null;
+  let colorPending = false;
+  async function applyColor() {
+    colorTimer = null;
+    if (colorPending) return;
+    colorPending = true;
+    colorSpinner.classList.remove('hidden');
     try {
-      hideAlert();
-      const hex = el.querySelector('[data-color]').value;
-      const data = await api(`/api/devices/${dev.id}/color`, { method: 'POST', body: JSON.stringify({ hex }) });
-      show(data.result);
-    } catch (e) { alert(`${dev.id}: ${e.message}`); }
-    btn.disabled = false;
+      const { result } = await api(`/api/devices/${dev.id}/color`, { method: 'POST', body: JSON.stringify({ hex: colorInput.value }) });
+      out.textContent = JSON.stringify(result, null, 2);
+      setState(true);
+    } catch (e) { toast(`${dev.id}: ${e.message}`); }
+    colorSpinner.classList.add('hidden');
+    colorPending = false;
+  }
+  function scheduleColorApply() {
+    clearTimeout(colorTimer);
+    colorTimer = setTimeout(applyColor, 400);
+  }
+  colorInput.addEventListener('input', () => { markSwatch(colorInput.value); el.style.setProperty('--bulb', colorInput.value); scheduleColorApply(); });
+
+  power.addEventListener('change', async () => {
+    if (busy) return;
+    busy = true;
+    power.disabled = true;
+    const want = power.checked;
+    try {
+      hideToast();
+      await api(`/api/devices/${dev.id}/${want ? 'on' : 'off'}`, { method: 'POST' });
+      setState(want);
+    } catch (e) {
+      power.checked = !want;
+      toast(`${dev.id}: ${e.message}`);
+    }
+    power.disabled = false;
+    busy = false;
+  });
+
+  el.querySelector('[data-refresh]').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    btn.classList.add('spin');
+    try { hideToast(); await refresh(); }
+    catch (e) { toast(`${dev.id}: ${e.message}`); }
+    btn.classList.remove('spin');
   });
 
   el.querySelector('[data-savekey]').addEventListener('click', async () => {
     const key = el.querySelector('[data-key]').value.trim();
-    if (key.length !== 16) { alert('Local key must be exactly 16 characters.'); return; }
+    if (key.length !== 16) { toast('Local key must be exactly 16 characters.'); return; }
     try {
-      hideAlert();
+      hideToast();
       await api(`/api/devices/${dev.id}`, { method: 'PUT', body: JSON.stringify({ key }) });
       el.querySelector('[data-keyrow]').classList.add('hidden');
-      alert(`Key saved for ${dev.id}.`, true);
-      load();
-    } catch (e) { alert(`${dev.id}: ${e.message}`); }
+      toast(`Key saved for ${dev.id}.`, true);
+      refresh().catch(() => {});
+    } catch (e) { toast(`${dev.id}: ${e.message}`); }
   });
 
+  setState(null);
+  if (dev.key === 'set') refresh().catch(() => {});
   return el;
 }
 
 async function load() {
   try {
+    hideToast();
     const { devices } = await api('/api/devices');
     const wrap = $('devices');
     wrap.innerHTML = '';
     $('empty').classList.toggle('hidden', devices.length > 0);
     devices.forEach((d) => wrap.appendChild(card(d)));
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message); }
 }
 
 $('btn-scan').addEventListener('click', async () => {
@@ -158,12 +311,12 @@ $('btn-scan').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Scanning…';
   try {
-    hideAlert();
+    hideToast();
     const timeoutSec = Math.min(Math.max(parseInt($('scan-time').value, 10) || 10, 1), 60);
     const { found, cached } = await api('/api/scan', { method: 'POST', body: JSON.stringify({ timeoutSec }) });
-    alert(`Scan complete: ${found.length} heard, ${cached} cached.`, true);
+    toast(`Scan complete: ${found.length} heard, ${cached} cached.`, true);
     load();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message); }
   btn.disabled = false;
   btn.textContent = 'Scan';
 });
