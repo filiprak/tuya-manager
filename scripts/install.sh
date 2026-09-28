@@ -67,32 +67,6 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now "$OFF_SERVICE"
 
-echo "==> installing toggle icon ($UUID)"
-# St (which has its own icon theme, separate from Gtk's) resolves the custom
-# bulb svg from the hicolor fallback theme and recolors the -symbolic svg
-# like stock toggles, including dark style.
-ICON_SRC="$ROOT/gnome-extension/icons/tuya-led-bulb-symbolic.svg"
-ICON_DST="$HOME/.local/share/icons/hicolor/scalable/status/tuya-led-bulb-symbolic.svg"
-mkdir -p "$(dirname "$ICON_DST")"
-cp -f "$ICON_SRC" "$ICON_DST"
-# A missing index.theme makes some theme lookups skip ~/.local/share/icons
-# entirely — restore the minimal hicolor index and refresh the cache.
-if [ ! -f "$HOME/.local/share/icons/hicolor/index.theme" ]; then
-  cat > "$HOME/.local/share/icons/hicolor/index.theme" <<'EOF'
-[Icon Theme]
-Name=Hicolor
-Comment=Fallback theme
-Directories=scalable/status
-[scalable/status]
-Size=16
-Type=Scalable
-MinSize=8
-MaxSize=512
-Context=Status
-EOF
-fi
-gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
-
 echo "==> installing GNOME extension ($UUID)"
 # Use gnome-extensions pack+install (not raw cp) so the running Shell is
 # notified through D-Bus and picks the extension up without relogin.

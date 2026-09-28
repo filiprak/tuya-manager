@@ -10,14 +10,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {QuickToggle, SystemIndicator} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// Custom bulb in the Adwaita symbolic outline style. install.sh places it in
-// ~/.local/share/icons/hicolor/... (with index.theme + icon cache refresh)
-// so the themed lookup resolves and St recolors the -symbolic svg like the
-// stock toggles — including dark style. NOTE: do not import Gtk here (the
-// Shell already loads Gtk 4, so requesting Gtk 3 aborts loading) and do not
-// set a FileIcon gicon (it bypasses symbolic recoloring and breaks dark
-// style); plain iconName is the correct mechanism.
-const ICON_NAME = 'tuya-led-bulb-symbolic';
+// Stock symbolic icon, same as ../gnome-tuya example default
+// ('toggle-icon' default). No custom icon is shipped.
+const ICON_NAME = 'utilities-terminal-symbolic';
 
 function dpsIsOn(status) {
     const dps = status?.dps ?? status?.data?.dps ?? {};

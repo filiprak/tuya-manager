@@ -75,6 +75,6 @@ Manual test: `node dist/led-off.js` (all devices) or
 * `src/store.ts` — `devices.json` cache (migrates legacy `.tuya.json`)
 * `src/server.ts` — `node:http` API + static files (zero runtime deps)
 * `public/index.html` — Tailwind dashboard (CDN, no build step)
-* `gnome-extension/` — Quick Settings LED toggle (shell 45–50) with a custom
-  bulb icon (`icons/tuya-led-bulb-symbolic.svg`, Adwaita symbolic style)
+* `gnome-extension/` — Quick Settings LED toggle (shell 45–50, stock
+  `utilities-terminal-symbolic` icon like `../gnome-tuya`)
 * `scripts/install.sh` / `scripts/uninstall.sh` — service + extension setup
