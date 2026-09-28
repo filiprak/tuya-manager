@@ -1,11 +1,13 @@
 // Quick Settings toggle for the Tuya lamp. Talks to the tuya-manager
 // dashboard over localhost HTTP (see ../src/server.ts API).
+// Popover wiring mirrors ../gnome-tuya: a QuickToggle living in a
+// SystemIndicator's quickSettingsItems.
 
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
 import Soup from 'gi://Soup';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
+import {QuickToggle, SystemIndicator} from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 function dpsIsOn(status) {
@@ -18,21 +20,20 @@ function dpsIsOn(status) {
 }
 
 const TuyaLedToggle = GObject.registerClass(
-class TuyaLedToggle extends QuickSettings.QuickMenuToggle {
-    _init(ext) {
+class TuyaLedToggle extends QuickToggle {
+    _init(settings) {
         super._init({
             title: _('LED'),
+            subtitle: _('Tuya lamp'),
             iconName: 'lightbulb-symbolic',
             toggleMode: true,
         });
 
-        this._ext = ext;
-        this._settings = ext.getSettings();
+        this._settings = settings;
         this._session = new Soup.Session({timeout: 8});
         this._syncing = false;
         this._qs = Main.panel.statusArea.quickSettings;
 
-        this.menu.setHeader('lightbulb-symbolic', _('LED'), _('Tuya lamp'));
         this.connect('clicked', () => this._onClicked());
         this._menuOpenId = this._qs.menu.connect('open-state-changed',
             (_menu, open) => {
@@ -41,12 +42,13 @@ class TuyaLedToggle extends QuickSettings.QuickMenuToggle {
             });
     }
 
-    cleanup() {
+    destroy() {
         if (this._menuOpenId) {
             this._qs.menu.disconnect(this._menuOpenId);
             this._menuOpenId = 0;
         }
         this._session?.abort();
+        super.destroy();
     }
 
     _apiBase() {
@@ -102,7 +104,11 @@ class TuyaLedToggle extends QuickSettings.QuickMenuToggle {
     _setCheckedSilently(on) {
         this._syncing = true;
         this.checked = on;
+        this.subtitle = on ? _('On') : _('Off');
         this._syncing = false;
+        this._indicator?.queue_redraw?.();
+        if (this._indicator)
+            this._indicator.visible = on;
     }
 
     async _syncState() {
@@ -121,6 +127,9 @@ class TuyaLedToggle extends QuickSettings.QuickMenuToggle {
         if (this._syncing)
             return;
         const want = this.checked;
+        this.subtitle = want ? _('On') : _('Off');
+        if (this._indicator)
+            this._indicator.visible = want;
         try {
             const id = await this._resolveDeviceId();
             await this._request(`/api/devices/${encodeURIComponent(id)}/${want ? 'on' : 'off'}`, 'POST', {});
@@ -131,15 +140,38 @@ class TuyaLedToggle extends QuickSettings.QuickMenuToggle {
     }
 });
 
+const TuyaLedIndicator = GObject.registerClass(
+class TuyaLedIndicator extends SystemIndicator {
+    _init(settings) {
+        super._init();
+        this._settings = settings;
+
+        this._indicator = this._addIndicator();
+        this._indicator.iconName = 'lightbulb-symbolic';
+        this._indicator.visible = false;
+
+        this._toggle = new TuyaLedToggle(settings);
+        this._toggle._indicator = this._indicator;
+        this.quickSettingsItems.push(this._toggle);
+    }
+
+    destroy() {
+        this._toggle?.destroy();
+        this._toggle = null;
+        super.destroy();
+    }
+});
+
 export default class TuyaLedExtension extends Extension {
     enable() {
-        this._toggle = new TuyaLedToggle(this);
-        Main.panel.statusArea.quickSettings.addExternalIndicator(this._toggle);
+        this._settings = this.getSettings();
+        this._indicator = new TuyaLedIndicator(this._settings);
+        Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
     }
 
     disable() {
-        this._toggle?.cleanup();
-        this._toggle?.destroy();
-        this._toggle = null;
+        this._indicator?.destroy();
+        this._indicator = null;
+        this._settings = null;
     }
 }
