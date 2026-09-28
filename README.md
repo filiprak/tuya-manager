@@ -20,9 +20,24 @@ Tuya protocol ported from [`tinytuya`](../../tinytuya) (`core/crypto_helper.py`,
 ```bash
 pnpm install
 pnpm build
-pnpm start            # dashboard at http://localhost:3000
+pnpm start            # dashboard at http://localhost:9751
 PORT=8080 pnpm start  # custom port
 ```
+
+## GNOME toggle + background service
+
+`scripts/install.sh` builds the server, runs it constantly as a systemd user
+service, and installs a Quick Settings toggle (next to Wi-Fi/Bluetooth) that
+turns the lamp on/off on click (state re-syncs each time the menu opens).
+Settings (API URL, pinned device ID) live in Extension Manager preferences.
+
+```bash
+PORT=9751 ./scripts/install.sh
+./scripts/uninstall.sh   # stops service, removes extension, keeps devices.json
+```
+
+Layout: `gnome-extension/` (`extension.js`, `prefs.js`, `metadata.json`,
+`schemas/`), user unit `tuya-manager.service`.
 
 ## REST API
 
@@ -55,3 +70,5 @@ PORT=8080 pnpm start  # custom port
 * `src/store.ts` — `devices.json` cache (migrates legacy `.tuya.json`)
 * `src/server.ts` — `node:http` API + static files (zero runtime deps)
 * `public/index.html` — Tailwind dashboard (CDN, no build step)
+* `gnome-extension/` — Quick Settings LED toggle (shell 45–50)
+* `scripts/install.sh` / `scripts/uninstall.sh` — service + extension setup

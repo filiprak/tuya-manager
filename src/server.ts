@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { TuyaDevice, detectSwitchDp, setOn, setColour, parseHexColour, scan } from './tuya.js';
 import { storePath, loadStore, saveStore, mergeScanResults, getDevice } from './store.js';
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '9751', 10);
 const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const STORE_FILE = storePath();
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.tuya-led" path="/org/gnome/shell/extensions/tuya-led/">
+    <key name="api-base" type="s">
+      <default>'http://localhost:9751'</default>
+      <summary>Dashboard API base URL</summary>
+      <description>Base URL of the tuya-manager server (no trailing path).</description>
+    </key>
+    <key name="device-id" type="s">
+      <default>''</default>
+      <summary>Device ID</summary>
+      <description>Which lamp to toggle. Empty means the dashboard default device.</description>
+    </key>
+  </schema>
+</schemalist>
