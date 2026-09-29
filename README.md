@@ -1,6 +1,6 @@
 # tuya-manager
 
-TypeScript HTTP server + Tailwind dashboard for Tuya LAN devices.
+Node.js web + GNOME app to integrate with Tuya LED devices over LAN.
 
 ## Setup
 
