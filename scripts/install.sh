@@ -7,6 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UUID="tuya-led@localhost"
 SERVICE="tuya-manager.service"
 OFF_SERVICE="tuya-led-off.service"
+ON_SERVICE="tuya-led-on.service"
 PORT="${PORT:-9751}"
 EXT_DIR="$HOME/.local/share/gnome-shell/extensions/$UUID"
 UNIT_DIR="$HOME/.config/systemd/user"
@@ -66,6 +67,27 @@ WantedBy=default.target
 EOF
 systemctl --user daemon-reload
 systemctl --user enable --now "$OFF_SERVICE"
+
+echo "==> installing boot hook ($ON_SERVICE, turns LED on at login/boot)"
+mkdir -p "$UNIT_DIR"
+cat > "$UNIT_DIR/$ON_SERVICE" <<EOF
+[Unit]
+Description=Turn on Tuya LED on boot
+After=network-online.target $SERVICE
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=$ROOT
+ExecStart=$(command -v node) $ROOT/dist/led-on.js
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now "$ON_SERVICE"
 
 echo "==> installing GNOME extension ($UUID)"
 # Use gnome-extensions pack+install (not raw cp) so the running Shell is

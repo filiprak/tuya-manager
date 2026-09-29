@@ -39,10 +39,14 @@ PORT=9751 ./scripts/install.sh
 Layout: `gnome-extension/` (`extension.js`, `prefs.js`, `metadata.json`,
 `schemas/`), user unit `tuya-manager.service` plus shutdown hook
 `tuya-led-off.service` (runs `node dist/led-off.js` on shutdown so the lamp
-turns itself off; re-run `scripts/install.sh` to install it).
+turns itself off) and boot hook `tuya-led-on.service`
+(runs `node dist/led-on.js` after login so the lamp turns itself on;
+retries for ~30s while Wi-Fi comes up). Re-run `scripts/install.sh`
+to install them.
 
 Manual test: `node dist/led-off.js` (all devices) or
-`node dist/led-off.js --device <id>`; always exits 0.
+`node dist/led-off.js --device <id>`; same flags for `node dist/led-on.js`
+(plus `--retries <n> --retry-delay <ms>`); always exits 0.
 
 ## REST API
 
