@@ -1,18 +1,16 @@
 # tuya-manager
 
 TypeScript HTTP server + Tailwind dashboard for Tuya LAN devices.
-Tuya protocol ported from [`tinytuya`](../../tinytuya) (`core/crypto_helper.py`,
-`core/message_helper.py`, `core/XenonDevice.py`, `BulbDevice.py`, `scanner.py`).
 
 ## Setup
 
 1. Start the server and open the dashboard.
 2. Press **Scan** — discovered devices (address, device ID, protocol version)
    are cached in `devices.json`.
-3. Paste each device's **local key** once in the dashboard
-   (get it via `tinytuya wizard`); afterwards on/off/toggle/status work keyless.
+3. Paste each device's **local key** once in the dashboard;
+   afterwards on/off/toggle/status work keyless.
 
-> Control needs the per-device **local key** (`tinytuya wizard`).
+> Control needs the per-device **local key**.
 > Enter it once in the dashboard — it is stored server-side in `devices.json` (0600, gitignored).
 
 ## Run
@@ -62,7 +60,7 @@ Manual test: `node dist/led-off.js` (all devices) or
 | POST | `/api/devices/:id/dps` `{dps}` | set arbitrary datapoints |
 | PUT | `/api/devices/:id` `{key?, ip?, version?}` | store key / fix address |
 
-## Protocol notes (from tinytuya `PROTOCOL.md`)
+## Protocol notes
 
 * Frame: `55AA seq cmd len payload CRC32 footer` (`src/tuya.ts:packMessage`).
 * v3.3 crypto: AES-128-ECB of JSON with static local key, clear `3.3 + 12×0x00`
@@ -70,7 +68,7 @@ Manual test: `node dist/led-off.js` (all devices) or
 * `DP_QUERY` (0x0A): `{"gwId","devId","uid":"","t":epoch}`;
   `CONTROL` (0x07): `{"devId","uid":"","t":epoch,"dps":{...}}`.
 * Bulb on/off: Type B → DP `20`, Type A/C → DP `1`; auto-detected from
-  `status().dps` like `BulbDevice.detect_bulb` (`detectSwitchDp`).
+  `status().dps` (`detectSwitchDp`).
 * Scan: UDP 6666 (plaintext) / 6667 (AES-ECB, `md5("yGAdlopoPVldABfn")`) / 7000.
 
 ## Layout
